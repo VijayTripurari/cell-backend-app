@@ -35,12 +35,19 @@ public class JobScheduler {
             System.out.println("List of files from uploads folder : " + files);
             if(null != files ) {
                 for (File file1 : files) {
+                    String provider = file1.getName().substring(StringUtils.ordinalIndexOf(file1.getName(), "_", 3) + 1, StringUtils.ordinalIndexOf(file1.getName(), "_", 4));
                     List<DbFile> dbFileList = fileDetailService.getFileDetails(file1.getName());
-                     if(0 == dbFileList.size()) {
+                     if(null == dbFileList) {
                          System.out.println("Reading file name: " + file1.getName());
                         try {
                             fileDetailService.storeFileDetails(file1.getName());
-                            excelReadService.read_AIRTEL_DataFromExcel(file1);
+                            if(provider.equalsIgnoreCase("AIRTEL")) {
+                                excelReadService.read_AIRTEL_DataFromExcel(file1);
+                            }
+                            else
+                                if(provider.equalsIgnoreCase("JIO")) {
+                                    excelReadService.read_JIO_DataFromExcel(file1);
+                                }
                         } catch (InvalidFormatException e) {
                             e.printStackTrace();
                         } catch (IOException e) {

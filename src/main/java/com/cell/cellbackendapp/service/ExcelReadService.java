@@ -39,7 +39,7 @@ public class ExcelReadService {
         provOpMap.put("AIRTEL" , Arrays.asList(2,3));
 
         stateKeyMap.put("ANDAMAN NICOBAR",1);
-        stateKeyMap.put("ANDHRA PRADESH",2);
+        stateKeyMap.put("ANDHRAPRADESH",2);
         stateKeyMap.put("TELANGANA",3);
         stateKeyMap.put("ASSAM",4);
         stateKeyMap.put("BIHAR",5);
@@ -237,6 +237,58 @@ public class ExcelReadService {
             }
         }
 
+    }
+
+    public void read_JIO_DataFromExcel(File file) throws EncryptedDocumentException, InvalidFormatException, IOException {
+//        File file = new File(jioPath);
+        Workbook workbook = WorkbookFactory.create(file);
+        System.out.println("Workbook name : " + file.getName());
+        System.out.println("Workbook has " + workbook.getNumberOfSheets() + " Sheets");
+        for (Sheet sheet : workbook) {
+            System.out.println(" ----- " + sheet.getSheetName());
+            if (sheet.getSheetName().equals("JIO")) {
+                CellTower cellTower = null;
+                int i = 1;
+                for (Row row : sheet) {
+
+                    if (i != 1) {
+                        String idValue = file.getName().substring(StringUtils.ordinalIndexOf(file.getName(), "_", 3) + 1, file.getName().lastIndexOf(".")) + "_" + cellTowerGenerator.generateId();
+                        cellTower = new CellTower();
+                        cellTower.setTOWER_KEY(idValue);
+                        cellTower.setCELLTOWERID(row.getCell(0).getStringCellValue()); // 3G Cell Id , _ replaced by -);
+                        cellTower.setBTS_ID(row.getCell(0).getStringCellValue());
+                        String adr = row.getCell(6).getStringCellValue();
+                        String areaDesc = adr.substring(StringUtils.ordinalIndexOf(adr, ",", 1) + 1);
+                        cellTower.setAREADESCRIPTION(areaDesc);
+                        cellTower.setSITEADDRESS(adr);
+                        cellTower.setLAT(row.getCell(8).getNumericCellValue());
+                        cellTower.setLONG(row.getCell(9).getNumericCellValue());
+                       if(row.getCell(11) != null)
+                           cellTower.setAZIMUTH(row.getCell(11).getNumericCellValue());
+                       else
+                           cellTower.setAZIMUTH(0d);
+
+                        String op = idValue.substring(0, StringUtils.ordinalIndexOf(idValue, "_", 1));
+                        cellTower.setOPERATOR(op);
+                        String stateName = file.getName().substring(StringUtils.ordinalIndexOf(file.getName(), "_", 1) + 1, StringUtils.ordinalIndexOf(file.getName(), "_", 2));
+                        cellTower.setSTATE(stateName);
+                        cellTower.setOTYPE(sheet.getSheetName());
+                        cellTower.setLASTUPDATE(new Date());
+                        cellTower.setOPID(provOpMap.get(op).get(1));
+                        cellTower.setSTATE_KEY(stateKeyMap.get(stateName));
+                        cellTower.setPROVIDER_KEY(provOpMap.get(op).get(0));
+                        System.out.println(" | " + row.getCell(0).getStringCellValue() +
+                                " | " + row.getCell(0).getStringCellValue() +
+                                " | " + row.getCell(6).getStringCellValue() +
+                                " | " + row.getCell(8).getNumericCellValue() +
+                                " | " + row.getCell(9).getNumericCellValue());
+                        CellTower tower = cellTowerRepository.save(cellTower);
+                        System.out.println("JIO Tower stored in DB =====> " + tower);
+                    }
+                    i++;
+                }
+            }
+        }
     }
 }
 
