@@ -6,5 +6,5 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Repository
-public interface DbFileRepository extends JpaRepository<DbFile, String> {
+public interface DbFileRepository extends JpaRepository<DbFile, Long> {
 }

@@ -16,8 +16,10 @@ import java.util.Date;
 public class CellTower {
 
     @Id
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "cell_tower_seq")
+    @SequenceGenerator(name="cell_tower_seq", sequenceName="cell_tower_seq", allocationSize = 1)
     @Column(name="TOWER_KEY")
-    private String TOWER_KEY;
+    private Long TOWER_KEY;
 
     @Column(name="CELLTOWERID")
     private String CELLTOWERID;

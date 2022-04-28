@@ -37,7 +37,7 @@ public class JobScheduler {
                 for (File file1 : files) {
                     String provider = file1.getName().substring(StringUtils.ordinalIndexOf(file1.getName(), "_", 3) + 1, StringUtils.ordinalIndexOf(file1.getName(), "_", 4));
                     List<DbFile> dbFileList = fileDetailService.getFileDetails(file1.getName());
-                     if(null == dbFileList) {
+                     if(dbFileList.size() == 0) {
                          System.out.println("Reading file name: " + file1.getName());
                         try {
                             fileDetailService.storeFileDetails(file1.getName());

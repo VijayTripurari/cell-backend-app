@@ -24,7 +24,7 @@ public class FileDetailService {
     public void storeFileDetails(String fileName) {
         DbFile dbFile = null;
         try {
-          dbFile = dbFileRepository.save(new DbFile(cellTowerGenerator.generateId(), fileName, new Date()));
+          dbFile = dbFileRepository.save(new DbFile(fileName, new Date()));
         }
         catch(Exception ex) {
                 throw new RuntimeException("Could not Load name file details");

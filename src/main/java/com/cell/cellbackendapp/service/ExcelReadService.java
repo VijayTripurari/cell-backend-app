@@ -7,10 +7,7 @@ import com.cell.cellbackendapp.util.CellTowerGenerator;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.poi.EncryptedDocumentException;
 import org.apache.poi.openxml4j.exceptions.InvalidFormatException;
-import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Sheet;
-import org.apache.poi.ss.usermodel.Workbook;
-import org.apache.poi.ss.usermodel.WorkbookFactory;
+import org.apache.poi.ss.usermodel.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 import org.springframework.stereotype.Service;
@@ -117,14 +114,18 @@ public class ExcelReadService {
             if(sheet.getSheetName().equals("4G")) {
                 CellTower cellTower = null;
                 int i=1;
+                List<CellTower> cellTowerList = new ArrayList<>();
                 for(Row row : sheet) {
 
                     if( i!=1) { // dont read first colum in sheet because they are column headers
                         String idValue = file.getName().substring(StringUtils.ordinalIndexOf(file.getName(), "_", 3) + 1, file.getName().lastIndexOf(".")) + "_" + cellTowerGenerator.generateId();
                         cellTower = new CellTower();
-                        cellTower.setTOWER_KEY(idValue); // 0 default
+//                        cellTower.setTOWER_KEY(idValue); // 0 default
+                        if(row.getCell(5) != null)
                         cellTower.setCELLTOWERID(row.getCell(5).getStringCellValue().replace("_", "-")); // 4G Cell Id , _ replaced by -
-                        cellTower.setBTS_ID(row.getCell(6).getStringCellValue());
+                        else
+                            cellTower.setCELLTOWERID("");
+                         cellTower.setBTS_ID(row.getCell(6).getStringCellValue());
                         String adr = row.getCell(7).getStringCellValue();
                         String siteAddr = adr.substring(StringUtils.ordinalIndexOf(adr, ",", 3) + 1);
                         cellTower.setAREADESCRIPTION(siteAddr);
@@ -154,12 +155,14 @@ public class ExcelReadService {
                                 " | " + row.getCell(9).getNumericCellValue() +
                                 " | " + row.getCell(10).getNumericCellValue() +
                                 " | " + row.getCell(11).getNumericCellValue());
-
-                        CellTower tower = cellTowerRepository.save(cellTower);
-                        System.out.println("4G Tower stored in DB =====> " + tower);
+                        cellTowerList.add(cellTower);
+//                        CellTower tower = cellTowerRepository.save(cellTower);
+//                        System.out.println("4G Tower stored in DB =====> " + tower);
                     }
                     i++;
                 }
+                cellTowerRepository.saveAll(cellTowerList);
+                System.out.println("4G Tower stored in DB =====> ");
             }
             else
             if(sheet.getSheetName().equals("3G")) {
@@ -169,7 +172,7 @@ public class ExcelReadService {
                     if(i!=1) {
                         String idValue = file.getName().substring(StringUtils.ordinalIndexOf(file.getName(), "_", 3) + 1, file.getName().lastIndexOf(".")) + "_" + cellTowerGenerator.generateId();
                         cellTower = new CellTower();
-                        cellTower.setTOWER_KEY(idValue);
+//                        cellTower.setTOWER_KEY(idValue);
                         cellTower.setCELLTOWERID(String.valueOf(row.getCell(1).getNumericCellValue())); // 3G Cell Id , _ replaced by -);
                         cellTower.setBTS_ID(row.getCell(2).getStringCellValue());
                         String adr = row.getCell(4).getStringCellValue();
@@ -249,16 +252,23 @@ public class ExcelReadService {
             if (sheet.getSheetName().equals("JIO")) {
                 CellTower cellTower = null;
                 int i = 1;
+                List<CellTower> cellTowerList = new ArrayList<>();
                 for (Row row : sheet) {
-
-                    if (i != 1) {
                         String idValue = file.getName().substring(StringUtils.ordinalIndexOf(file.getName(), "_", 3) + 1, file.getName().lastIndexOf(".")) + "_" + cellTowerGenerator.generateId();
                         cellTower = new CellTower();
-                        cellTower.setTOWER_KEY(idValue);
+//                        cellTower.setTOWER_KEY(idValue);
                         cellTower.setCELLTOWERID(row.getCell(0).getStringCellValue()); // 3G Cell Id , _ replaced by -);
                         cellTower.setBTS_ID(row.getCell(0).getStringCellValue());
-                        String adr = row.getCell(6).getStringCellValue();
-                        String areaDesc = adr.substring(StringUtils.ordinalIndexOf(adr, ",", 1) + 1);
+                        String adr;
+                        if(null != row.getCell(6))
+                          adr = row.getCell(6).getStringCellValue();
+                        else
+                          adr = null;
+                    String areaDesc;
+                        if(adr != null)
+                        areaDesc = adr.substring(StringUtils.ordinalIndexOf(adr, ",", 1) + 1);
+                        else
+                            areaDesc = null;
                         cellTower.setAREADESCRIPTION(areaDesc);
                         cellTower.setSITEADDRESS(adr);
                         cellTower.setLAT(row.getCell(8).getNumericCellValue());
@@ -279,14 +289,15 @@ public class ExcelReadService {
                         cellTower.setPROVIDER_KEY(provOpMap.get(op).get(0));
                         System.out.println(" | " + row.getCell(0).getStringCellValue() +
                                 " | " + row.getCell(0).getStringCellValue() +
-                                " | " + row.getCell(6).getStringCellValue() +
+                                " | " + adr +
                                 " | " + row.getCell(8).getNumericCellValue() +
                                 " | " + row.getCell(9).getNumericCellValue());
-                        CellTower tower = cellTowerRepository.save(cellTower);
-                        System.out.println("JIO Tower stored in DB =====> " + tower);
-                    }
-                    i++;
+                        cellTowerList.add(cellTower);
+//                        CellTower tower = cellTowerRepository.save(cellTower);
+//                        System.out.println("JIO Tower stored in DB =====> " + tower)
                 }
+                cellTowerRepository.saveAll(cellTowerList);
+                System.out.println("Data stored successfully");
             }
         }
     }
