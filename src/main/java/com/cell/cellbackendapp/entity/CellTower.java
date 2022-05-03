@@ -15,9 +15,10 @@ import java.util.Date;
 @Table(name="CELL_TOWER")
 public class CellTower {
 
+
+//    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "cell_tower_seq")
+//    @SequenceGenerator(name="cell_tower_seq", sequenceName="cell_tower_seq", allocationSize = 1)
     @Id
-    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "cell_tower_seq")
-    @SequenceGenerator(name="cell_tower_seq", sequenceName="cell_tower_seq", allocationSize = 1)
     @Column(name="TOWER_KEY")
     private Long TOWER_KEY;
 
