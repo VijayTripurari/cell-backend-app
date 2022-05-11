@@ -266,6 +266,13 @@ public class ExcelReadService {
                 Long preTowerMaxKey = 0L;
                 Long currentTowerKayMax=0L;
                 for (Row row : sheet) {
+                    List<Cell> cellList = cellRepository.findByCELLTOWERID(row.getCell(0).getStringCellValue());
+                    if(cellList.size() != 0)
+                    {
+                        System.out.println("Record with Cell Tower ID: "+ row.getCell(0).getStringCellValue() +" Already exists");
+                    }
+                    else
+                    {
                         String idValue = file.getName().substring(StringUtils.ordinalIndexOf(file.getName(), "_", 3) + 1, file.getName().lastIndexOf(".")) + "_" + cellTowerGenerator.generateId();
                         cellTower = new CellTower();
 //                        cellTower.setTOWER_KEY(idValue);
@@ -305,10 +312,10 @@ public class ExcelReadService {
                                 " | " + row.getCell(8).getNumericCellValue() +
                                 " | " + row.getCell(9).getNumericCellValue());
                         // skip object if the celltowerid is in cell table
-                    List<Cell> cellList = cellRepository.findByCELLTOWERID(row.getCell(0).getStringCellValue());
-
-                    if(cellList.size() == 0)
-                    {
+//                    List<Cell> cellList = cellRepository.findByCELLTOWERID(row.getCell(0).getStringCellValue());
+//
+//                    if(cellList.size() == 0)
+//                    {
 //                     Long currentTowerKayMax =   cellDAO.getMaxCellForProviderKey(16);
                        if(cellTowerList.size() != 0){
                            CellTower maxCellTower = cellTowerList
@@ -330,7 +337,7 @@ public class ExcelReadService {
                        cellTower.setTOWER_KEY(currentTowerKayMax);
                         cellTowerList.add(cellTower);
 
-                        if(cellTowerList.size()/2000 != 0 ){
+                        if(cellTowerList.size()/5 != 0 ){
                             cellTowerRepository.saveAll(cellTowerList);
                             System.out.println("2000 records Data stored successfully");
                             cellTowerList = new ArrayList<>(); // RESET to size 0
@@ -340,8 +347,15 @@ public class ExcelReadService {
 //                        CellTower tower = cellTowerRepository.save(cellTower);
 //                        System.out.println("JIO Tower stored in DB =====> " + tower)
                 }
+
+                for( CellTower cellTower1 : cellTowerList)
+                {
+
+                    cellTowerRepository.save(cellTower1);
+                    System.out.println("cell tower saved is : " + cellTower1.getCELLTOWERID());
+                }
 //                cellTowerRepository.saveAll(cellTowerList);
-//                System.out.println("Data stored successfully");
+                System.out.println("Data saved for the remaining rows successfully");
             }
         }
     }
