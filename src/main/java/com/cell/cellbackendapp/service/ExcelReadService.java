@@ -18,6 +18,7 @@ import org.springframework.stereotype.Service;
 import java.io.File;
 import java.io.IOException;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class ExcelReadService {
@@ -33,6 +34,10 @@ public class ExcelReadService {
 
     @Autowired
     CellDAO cellDAO;
+
+    Sheet currentJIOSheet;
+    Long preTowerMaxKey = 0L;
+    Long currentTowerKayMax=0L;
 
     static   Map<String , List<Integer>> provOpMap = new HashMap<>();
     static Map<String , Integer> stateKeyMap = new HashMap<>();
@@ -251,36 +256,79 @@ public class ExcelReadService {
 
     }
 
+
+
     public void read_JIO_DataFromExcel(File file) throws EncryptedDocumentException, InvalidFormatException, IOException {
-//        File file = new File(jioPath);
         Workbook workbook = WorkbookFactory.create(file);
         System.out.println("Workbook name : " + file.getName());
+        String fileName = file.getName();
         System.out.println("Workbook has " + workbook.getNumberOfSheets() + " Sheets");
         for (Sheet sheet : workbook) {
+            currentJIOSheet = sheet;
             System.out.println(" ----- " + sheet.getSheetName());
             if (sheet.getSheetName().equals("JIO")) {
+                Long towerKayMaxFromCell =   cellDAO.getMaxCellForProviderKey(16);
+                int rowTotal = sheet.getLastRowNum();
+                if ((rowTotal > 0) || (sheet.getPhysicalNumberOfRows() > 0)) {
+                    rowTotal++;
+                }
+                int batch_size = 5;
+                List<String> cellTowerIDRangeList;
+                if (rowTotal <= batch_size) {  // less than batch size
+                    cellTowerIDRangeList = cellTowerListForRange(0, rowTotal, sheet);
+                    read_JIO_Data_For_Range(0, rowTotal,currentJIOSheet,fileName,cellTowerIDRangeList,towerKayMaxFromCell,currentTowerKayMax,preTowerMaxKey);
+
+                } else {                     // more batches to execute
+                    int itr = rowTotal / batch_size;
+                    int lastItr = rowTotal % batch_size;
+                    int j,k;
+                    for (j = 1, k = 1; j <= rowTotal && k <= itr; j = j + 5, k++) {
+                        cellTowerIDRangeList = cellTowerListForRange(j - 1, batch_size, sheet);
+                        read_JIO_Data_For_Range(j-1,batch_size,currentJIOSheet,fileName,cellTowerIDRangeList,towerKayMaxFromCell,currentTowerKayMax,preTowerMaxKey);
+                    }
+                    cellTowerIDRangeList = cellTowerListForRange(j - 1, lastItr, sheet);
+                    read_JIO_Data_For_Range(j-1,lastItr,sheet,fileName,cellTowerIDRangeList,towerKayMaxFromCell,currentTowerKayMax,preTowerMaxKey);
+                }
+            }
+        }
+    }
+    private List<String> cellTowerListForRange(int index , int batch_size, Sheet sheet){
+        List<Cell> cellList = new ArrayList<>();
+        List<String> resultCellList = new ArrayList<>();
+        int size = index+batch_size;
+        for (int i=index ; i< size ; i++) {
+            cellList =  cellRepository.findByCELLTOWERID(sheet.getRow(i).getCell(0).getStringCellValue());
+            if(!cellList.isEmpty()){
+                cellList.stream().map(cell -> cell.getCELLTOWERID()).forEach(cellTowerId -> resultCellList.add(cellTowerId));
+            }
+        }
+        return resultCellList;
+    }
+            private void read_JIO_Data_For_Range(int index , int batch_size, Sheet sheet, String fileName, List<String> cellTowerIDRangeList, Long towerKayMaxFromCell,Long currentTowerKayMax,Long preTowerMaxKey) throws EncryptedDocumentException, InvalidFormatException, IOException {
+
                 CellTower cellTower = null;
                 int i = 1;
                 List<CellTower> cellTowerList = new ArrayList<>();
-                Long towerKayMaxFromCell =   cellDAO.getMaxCellForProviderKey(16);
-                Long preTowerMaxKey = 0L;
-                Long currentTowerKayMax=0L;
-                for (Row row : sheet) {
-                    List<Cell> cellList = cellRepository.findByCELLTOWERID(row.getCell(0).getStringCellValue());
-                    if(cellList.size() != 0)
+                  int size = index+batch_size;
+                for (int rowNo=index ; rowNo< size ; rowNo++) {
+                    final int rowNumb = rowNo;
+                    List<String> result = cellTowerIDRangeList
+                            .stream()
+                            .filter(x -> x.contains(sheet.getRow(rowNumb).getCell(0).getStringCellValue()))
+                            .collect(Collectors.toList());
+                    if(!result.isEmpty())
                     {
-                        System.out.println("Record with Cell Tower ID: "+ row.getCell(0).getStringCellValue() +" Already exists");
+                        System.out.println("Record with Cell Tower ID: "+sheet.getRow(rowNo).getCell(0).getStringCellValue() +" Already exists");
                     }
                     else
                     {
-                        String idValue = file.getName().substring(StringUtils.ordinalIndexOf(file.getName(), "_", 3) + 1, file.getName().lastIndexOf(".")) + "_" + cellTowerGenerator.generateId();
+                        String idValue = fileName.substring(StringUtils.ordinalIndexOf(fileName, "_", 3) + 1, fileName.lastIndexOf(".")) + "_" + cellTowerGenerator.generateId();
                         cellTower = new CellTower();
-//                        cellTower.setTOWER_KEY(idValue);
-                        cellTower.setCELLTOWERID(row.getCell(0).getStringCellValue()); // 3G Cell Id , _ replaced by -);
-                        cellTower.setBTS_ID(row.getCell(0).getStringCellValue());
+                        cellTower.setCELLTOWERID(sheet.getRow(rowNo).getCell(0).getStringCellValue()); // 3G Cell Id , _ replaced by -);
+                        cellTower.setBTS_ID(sheet.getRow(rowNo).getCell(0).getStringCellValue());
                         String adr;
-                        if(null != row.getCell(6))
-                          adr = row.getCell(6).getStringCellValue();
+                        if(null != sheet.getRow(rowNo).getCell(6))
+                          adr = sheet.getRow(rowNo).getCell(6).getStringCellValue();
                         else
                           adr = null;
                     String areaDesc;
@@ -290,74 +338,49 @@ public class ExcelReadService {
                             areaDesc = null;
                         cellTower.setAREADESCRIPTION(areaDesc);
                         cellTower.setSITEADDRESS(adr);
-                        cellTower.setLAT(row.getCell(8).getNumericCellValue());
-                        cellTower.setLONG(row.getCell(9).getNumericCellValue());
-                       if(row.getCell(11) != null)
-                           cellTower.setAZIMUTH(row.getCell(11).getNumericCellValue());
+                        cellTower.setLAT(sheet.getRow(rowNo).getCell(8).getNumericCellValue());
+                        cellTower.setLONG(sheet.getRow(rowNo).getCell(9).getNumericCellValue());
+                       if(sheet.getRow(rowNo).getCell(11) != null)
+                           cellTower.setAZIMUTH(sheet.getRow(rowNo).getCell(11).getNumericCellValue());
                        else
                            cellTower.setAZIMUTH(0d);
 
                         String op = idValue.substring(0, StringUtils.ordinalIndexOf(idValue, "_", 1));
                         cellTower.setOPERATOR(op);
-                        String stateName = file.getName().substring(StringUtils.ordinalIndexOf(file.getName(), "_", 1) + 1, StringUtils.ordinalIndexOf(file.getName(), "_", 2));
+                        String stateName = fileName.substring(StringUtils.ordinalIndexOf(fileName, "_", 1) + 1, StringUtils.ordinalIndexOf(fileName, "_", 2));
                         cellTower.setSTATE(stateName);
                         cellTower.setOTYPE(sheet.getSheetName());
                         cellTower.setLASTUPDATE(new Date());
                         cellTower.setOPID(provOpMap.get(op).get(1));
                         cellTower.setSTATE_KEY(stateKeyMap.get(stateName));
                         cellTower.setPROVIDER_KEY(provOpMap.get(op).get(0));
-                        System.out.println(" | " + row.getCell(0).getStringCellValue() +
-                                " | " + row.getCell(0).getStringCellValue() +
+                        System.out.println(" | " + sheet.getRow(rowNo).getCell(0).getStringCellValue() +
+                                " | " + sheet.getRow(rowNo).getCell(0).getStringCellValue() +
                                 " | " + adr +
-                                " | " + row.getCell(8).getNumericCellValue() +
-                                " | " + row.getCell(9).getNumericCellValue());
-                        // skip object if the celltowerid is in cell table
-//                    List<Cell> cellList = cellRepository.findByCELLTOWERID(row.getCell(0).getStringCellValue());
-//
-//                    if(cellList.size() == 0)
-//                    {
-//                     Long currentTowerKayMax =   cellDAO.getMaxCellForProviderKey(16);
-                       if(cellTowerList.size() != 0){
-                           CellTower maxCellTower = cellTowerList
-                                   .stream()
-                                   .max(Comparator.comparing(CellTower::getTOWER_KEY))
-                                   .orElse(null);
-                           currentTowerKayMax = maxCellTower.getTOWER_KEY()+1;
-                           preTowerMaxKey = currentTowerKayMax;
-                       }
-                       else
-                         if(cellTowerList.size() == 0 && preTowerMaxKey!=0)
-                       {
-                           currentTowerKayMax = preTowerMaxKey+1;
-                           preTowerMaxKey = currentTowerKayMax;
-                       }
-                         else
-                             currentTowerKayMax = towerKayMaxFromCell+1;
+                                " | " + sheet.getRow(rowNo).getCell(8).getNumericCellValue() +
+                                " | " + sheet.getRow(rowNo).getCell(9).getNumericCellValue());
 
-                       cellTower.setTOWER_KEY(currentTowerKayMax);
+                        if(preTowerMaxKey == 0)
+                        {
+                            currentTowerKayMax = towerKayMaxFromCell+1;
+                            preTowerMaxKey = currentTowerKayMax;
+                        }
+                        else
+                        {
+                            currentTowerKayMax = preTowerMaxKey+1;
+                            preTowerMaxKey = currentTowerKayMax;
+                        }
+                        this.currentTowerKayMax = currentTowerKayMax;
+                        this.preTowerMaxKey = preTowerMaxKey;
+                        cellTower.setTOWER_KEY(currentTowerKayMax);
                         cellTowerList.add(cellTower);
 
-                        if(cellTowerList.size()/5 != 0 ){
-                            cellTowerRepository.saveAll(cellTowerList);
-                            System.out.println("2000 records Data stored successfully");
-                            cellTowerList = new ArrayList<>(); // RESET to size 0
-                        }
-
                     }
-//                        CellTower tower = cellTowerRepository.save(cellTower);
-//                        System.out.println("JIO Tower stored in DB =====> " + tower)
                 }
-
-                for( CellTower cellTower1 : cellTowerList)
-                {
-
-                    cellTowerRepository.save(cellTower1);
-                    System.out.println("cell tower saved is : " + cellTower1.getCELLTOWERID());
-                }
-//                cellTowerRepository.saveAll(cellTowerList);
-                System.out.println("Data saved for the remaining rows successfully");
+                cellTowerRepository.saveAll(cellTowerList);
+                System.out.println(" records stored successfully");
             }
         }
-    }
-}
+
+
 
