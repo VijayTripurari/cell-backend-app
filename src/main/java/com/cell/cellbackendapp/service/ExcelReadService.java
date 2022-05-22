@@ -12,6 +12,7 @@ import org.apache.poi.EncryptedDocumentException;
 import org.apache.poi.openxml4j.exceptions.InvalidFormatException;
 import org.apache.poi.ss.usermodel.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Repository;
 import org.springframework.stereotype.Service;
 
@@ -38,6 +39,9 @@ public class ExcelReadService {
     Sheet currentJIOSheet;
     Long preTowerMaxKey = 0L;
     Long currentTowerKayMax=0L;
+
+    @Value("${jio.batch.size}")
+    int jioBatchSize;
 
     static   Map<String , List<Integer>> provOpMap = new HashMap<>();
     static Map<String , Integer> stateKeyMap = new HashMap<>();
@@ -272,7 +276,7 @@ public class ExcelReadService {
                 if ((rowTotal > 0) || (sheet.getPhysicalNumberOfRows() > 0)) {
                     rowTotal++;
                 }
-                int batch_size = 5;
+                int batch_size = jioBatchSize;
                 List<String> cellTowerIDRangeList;
                 if (rowTotal <= batch_size) {  // less than batch size
                     cellTowerIDRangeList = cellTowerListForRange(0, rowTotal, sheet);
@@ -282,7 +286,7 @@ public class ExcelReadService {
                     int itr = rowTotal / batch_size;
                     int lastItr = rowTotal % batch_size;
                     int j,k;
-                    for (j = 1, k = 1; j <= rowTotal && k <= itr; j = j + 5, k++) {
+                    for (j = 1, k = 1; j <= rowTotal && k <= itr; j = j + batch_size, k++) {
                         cellTowerIDRangeList = cellTowerListForRange(j - 1, batch_size, sheet);
                         read_JIO_Data_For_Range(j-1,batch_size,currentJIOSheet,fileName,cellTowerIDRangeList,towerKayMaxFromCell,currentTowerKayMax,preTowerMaxKey);
                     }
@@ -299,7 +303,8 @@ public class ExcelReadService {
         for (int i=index ; i< size ; i++) {
             cellList =  cellRepository.findByCELLTOWERID(sheet.getRow(i).getCell(0).getStringCellValue());
             if(!cellList.isEmpty()){
-                cellList.stream().map(cell -> cell.getCELLTOWERID()).forEach(cellTowerId -> resultCellList.add(cellTowerId));
+//                cellList.parallelStream().map(cell -> cell.getCELLTOWERID()).forEach(cellTowerId -> resultCellList.add(cellTowerId));
+                resultCellList.add(cellList.get(0).getCELLTOWERID());
             }
         }
         return resultCellList;
@@ -313,7 +318,7 @@ public class ExcelReadService {
                 for (int rowNo=index ; rowNo< size ; rowNo++) {
                     final int rowNumb = rowNo;
                     List<String> result = cellTowerIDRangeList
-                            .stream()
+                            .parallelStream()
                             .filter(x -> x.contains(sheet.getRow(rowNumb).getCell(0).getStringCellValue()))
                             .collect(Collectors.toList());
                     if(!result.isEmpty())
@@ -354,11 +359,11 @@ public class ExcelReadService {
                         cellTower.setOPID(provOpMap.get(op).get(1));
                         cellTower.setSTATE_KEY(stateKeyMap.get(stateName));
                         cellTower.setPROVIDER_KEY(provOpMap.get(op).get(0));
-                        System.out.println(" | " + sheet.getRow(rowNo).getCell(0).getStringCellValue() +
-                                " | " + sheet.getRow(rowNo).getCell(0).getStringCellValue() +
-                                " | " + adr +
-                                " | " + sheet.getRow(rowNo).getCell(8).getNumericCellValue() +
-                                " | " + sheet.getRow(rowNo).getCell(9).getNumericCellValue());
+//                        System.out.println(" | " + sheet.getRow(rowNo).getCell(0).getStringCellValue() +
+//                                " | " + sheet.getRow(rowNo).getCell(0).getStringCellValue() +
+//                                " | " + adr +
+//                                " | " + sheet.getRow(rowNo).getCell(8).getNumericCellValue() +
+//                                " | " + sheet.getRow(rowNo).getCell(9).getNumericCellValue());
 
                         if(preTowerMaxKey == 0)
                         {
@@ -378,7 +383,7 @@ public class ExcelReadService {
                     }
                 }
                 cellTowerRepository.saveAll(cellTowerList);
-                System.out.println(" records stored successfully");
+                System.out.println(batch_size + " records stored successfully");
             }
         }
 
