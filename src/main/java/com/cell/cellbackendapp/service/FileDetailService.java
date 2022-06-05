@@ -40,6 +40,8 @@ public class FileDetailService {
             if(null != dbFileList && dbFileList.size() > 0){
                list = dbFileList.stream().filter(dbFile -> dbFile.getFILE_NAME().equalsIgnoreCase(fileName)).collect(Collectors.toList());
             }
+            else
+                list = null;
         }
         catch(Exception ex) {
             throw new RuntimeException("Could not find name file List from DB: ");

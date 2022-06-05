@@ -3,6 +3,7 @@ package com.cell.cellbackendapp.controller;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import com.cell.cellbackendapp.event.FileLoadEventPublisher;
 import com.cell.cellbackendapp.message.ResponseMessage;
 import com.cell.cellbackendapp.model.FileInfo;
 import com.cell.cellbackendapp.service.FilesStorageService;
@@ -22,8 +23,11 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.method.annotation.MvcUriComponentsBuilder;
 
 @Controller
-@CrossOrigin("http://localhost:8081")
+@CrossOrigin("http://localhost:8083")
 public class FilesController {
+    @Autowired
+    FileLoadEventPublisher fileLoadEventPublisher;
+
     @Autowired
     FilesStorageService storageService;
     @PostMapping("/upload")
@@ -32,6 +36,7 @@ public class FilesController {
         try {
             storageService.save(file);
             message = "Uploaded the file successfully: " + file.getOriginalFilename();
+            fileLoadEventPublisher.publishEvent("file load started "+file.getOriginalFilename());
             return ResponseEntity.status(HttpStatus.OK).body(new ResponseMessage(message));
         } catch (Exception e) {
             message = "Could not upload the file: " + file.getOriginalFilename() + "!";

@@ -35,7 +35,7 @@ public class ExcelReadService {
 
     @Autowired
     CellDAO cellDAO;
-
+    Workbook currentJIOWorkbook;
     Sheet currentJIOSheet;
     Long preTowerMaxKey = 0L;
     Long currentTowerKayMax=0L;
@@ -264,11 +264,13 @@ public class ExcelReadService {
 
     public void read_JIO_DataFromExcel(File file) throws EncryptedDocumentException, InvalidFormatException, IOException {
         Workbook workbook = WorkbookFactory.create(file);
+        currentJIOWorkbook = workbook;
         System.out.println("Workbook name : " + file.getName());
         String fileName = file.getName();
         System.out.println("Workbook has " + workbook.getNumberOfSheets() + " Sheets");
         for (Sheet sheet : workbook) {
             currentJIOSheet = sheet;
+
             System.out.println(" ----- " + sheet.getSheetName());
             if (sheet.getSheetName().equals("JIO")) {
                 Long towerKayMaxFromCell =   cellDAO.getMaxCellForProviderKey(16);
@@ -278,9 +280,10 @@ public class ExcelReadService {
                 }
                 int batch_size = jioBatchSize;
                 List<String> cellTowerIDRangeList;
+//                cellTowerIDRangeList = cellTowerListForRange(0, rowTotal, sheet);
                 if (rowTotal <= batch_size) {  // less than batch size
                     cellTowerIDRangeList = cellTowerListForRange(0, rowTotal, sheet);
-                    read_JIO_Data_For_Range(0, rowTotal,currentJIOSheet,fileName,cellTowerIDRangeList,towerKayMaxFromCell,currentTowerKayMax,preTowerMaxKey);
+                    read_JIO_Data_For_Range(0, rowTotal,file,currentJIOWorkbook,currentJIOSheet,fileName,cellTowerIDRangeList,towerKayMaxFromCell,currentTowerKayMax,preTowerMaxKey);
 
                 } else {                     // more batches to execute
                     int itr = rowTotal / batch_size;
@@ -288,10 +291,10 @@ public class ExcelReadService {
                     int j,k;
                     for (j = 1, k = 1; j <= rowTotal && k <= itr; j = j + batch_size, k++) {
                         cellTowerIDRangeList = cellTowerListForRange(j - 1, batch_size, sheet);
-                        read_JIO_Data_For_Range(j-1,batch_size,currentJIOSheet,fileName,cellTowerIDRangeList,towerKayMaxFromCell,currentTowerKayMax,preTowerMaxKey);
+                        read_JIO_Data_For_Range(j-1,batch_size,file,currentJIOWorkbook,currentJIOSheet,fileName,cellTowerIDRangeList,towerKayMaxFromCell,currentTowerKayMax,preTowerMaxKey);
                     }
                     cellTowerIDRangeList = cellTowerListForRange(j - 1, lastItr, sheet);
-                    read_JIO_Data_For_Range(j-1,lastItr,sheet,fileName,cellTowerIDRangeList,towerKayMaxFromCell,currentTowerKayMax,preTowerMaxKey);
+                    read_JIO_Data_For_Range(j-1,lastItr,file,currentJIOWorkbook,currentJIOSheet,fileName,cellTowerIDRangeList,towerKayMaxFromCell,currentTowerKayMax,preTowerMaxKey);
                 }
             }
         }
@@ -307,11 +310,22 @@ public class ExcelReadService {
                 resultCellList.add(cellList.get(0).getCELLTOWERID());
             }
         }
+
+        if(!resultCellList.isEmpty()){
+            System.out.println(" records already exists and will be skipped : " + resultCellList.size());
+        }
+
         return resultCellList;
     }
-            private void read_JIO_Data_For_Range(int index , int batch_size, Sheet sheet, String fileName, List<String> cellTowerIDRangeList, Long towerKayMaxFromCell,Long currentTowerKayMax,Long preTowerMaxKey) throws EncryptedDocumentException, InvalidFormatException, IOException {
-
+            private void read_JIO_Data_For_Range(int index , int batch_size,File file,Workbook workbook, Sheet sheet, String fileName, List<String> cellTowerIDRangeList, Long towerKayMaxFromCell,Long currentTowerKayMax,Long preTowerMaxKey) throws EncryptedDocumentException, InvalidFormatException, IOException {
+                workbook = WorkbookFactory.create(file);
                 CellTower cellTower = null;
+                for (Sheet curSheet : workbook) {
+                if(curSheet.getSheetName().equalsIgnoreCase(sheet.getSheetName())){
+                    currentJIOSheet= curSheet;
+                }
+                }
+
                 int i = 1;
                 List<CellTower> cellTowerList = new ArrayList<>();
                   int size = index+batch_size;
@@ -343,6 +357,8 @@ public class ExcelReadService {
                             areaDesc = null;
                         cellTower.setAREADESCRIPTION(areaDesc);
                         cellTower.setSITEADDRESS(adr);
+
+
                         cellTower.setLAT(sheet.getRow(rowNo).getCell(8).getNumericCellValue());
                         cellTower.setLONG(sheet.getRow(rowNo).getCell(9).getNumericCellValue());
                        if(sheet.getRow(rowNo).getCell(11) != null)
@@ -384,6 +400,7 @@ public class ExcelReadService {
                 }
                 cellTowerRepository.saveAll(cellTowerList);
                 System.out.println(batch_size + " records stored successfully");
+                workbook.close();
             }
         }
 
