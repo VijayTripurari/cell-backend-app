@@ -46,7 +46,7 @@ public class JobScheduler {
                             }
                             else
                                 if(provider.equalsIgnoreCase("JIO")) {
-                                    excelReadService.read_JIO_DataFromExcel(file1);
+                                    excelReadService.read_JIO_DataFromExcel_v1(file1);
                                 }
                         } catch (InvalidFormatException e) {
                             e.printStackTrace();
